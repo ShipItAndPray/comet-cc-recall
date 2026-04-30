@@ -12,7 +12,7 @@ from comet_cc_recall.recall import RecallHit, recall
 from comet_cc_recall.related import related
 from comet_cc_recall.search import search
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "RecallHit",
     "__version__",

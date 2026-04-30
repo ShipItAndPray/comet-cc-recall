@@ -8,6 +8,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from comet_cc_recall import __version__
+from comet_cc_recall.cli_digest import add_subparser as _add_digest_subparser
+from comet_cc_recall.cli_digest import cmd_digest
+from comet_cc_recall.cli_hook import add_subparser as _add_hook_subparser
+from comet_cc_recall.cli_hook import cmd_hook
+from comet_cc_recall.cli_mcp import add_subparser as _add_mcp_subparser
+from comet_cc_recall.cli_mcp import cmd_mcp
 from comet_cc_recall.client import DaemonClient, DaemonError
 from comet_cc_recall.context import DEFAULT_INSTRUCTION, context_block
 from comet_cc_recall.diff import diff_recall
@@ -115,10 +121,18 @@ def _build_parser() -> argparse.ArgumentParser:
     read.add_argument("--color", choices=["auto", "always", "never"], default="auto")
 
     sub.add_parser("doctor", help="Check daemon reachability + emit diagnostics.")
+
+    _add_digest_subparser(sub)
+    _add_hook_subparser(sub)
+    _add_mcp_subparser(sub)
+
     return p
 
 
-_KNOWN_SUBCOMMANDS = {"recall", "search", "related", "diff", "context", "read", "doctor"}
+_KNOWN_SUBCOMMANDS = {
+    "recall", "search", "related", "diff", "context", "read", "doctor",
+    "digest", "hook", "mcp",
+}
 
 
 def _desugar_bare_path(argv: Sequence[str]) -> list[str]:
@@ -295,6 +309,9 @@ def main(argv: Sequence[str] | None = None, *, client: DaemonClient | None = Non
         "context": _cmd_context,
         "read": _cmd_read,
         "doctor": _cmd_doctor,
+        "digest": cmd_digest,
+        "hook": cmd_hook,
+        "mcp": cmd_mcp,
     }
     if args.cmd in handlers:
         try:
