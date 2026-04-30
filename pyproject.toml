@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comet-cc-recall"
+version = "0.1.0"
+description = "File-anchored memory recall for CoMeT-CC. Open a file, see the nodes you've already reasoned through about it."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "ShipItAndPray" }]
+keywords = ["claude-code", "memory", "comet-cc", "recall", "rag"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Topic :: Software Development",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+comet-cc-recall = "comet_cc_recall.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ShipItAndPray/comet-cc-recall"
+Source = "https://github.com/ShipItAndPray/comet-cc-recall"
+Issues = "https://github.com/ShipItAndPray/comet-cc-recall/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
