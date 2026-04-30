@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comet-cc-recall"
-version = "0.2.0"
+version = "0.3.0"
 description = "File-anchored memory recall for CoMeT-CC. Open a file, see the nodes you've already reasoned through about it."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,9 @@ dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "ruff>=0.5",
+]
+mcp = [
+    "mcp>=1.0",
 ]
 
 [project.scripts]

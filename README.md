@@ -78,6 +78,18 @@ comet-cc-recall diff main
 # Emit a <recalled-memory> block to paste into a fresh agent prompt
 comet-cc-recall context services/payments.py -k 5
 
+# Periodic digest, grouped by tag (perfect for daily / weekly review)
+comet-cc-recall digest --since 7d --importance HIGH --top-per-tag 3
+
+# Install a non-blocking pre-push git hook that surfaces recalled memory
+comet-cc-recall hook install
+comet-cc-recall hook status
+comet-cc-recall hook uninstall
+
+# Run as an MCP server (stdio) — any agent can call recall as a tool
+pip install "comet-cc-recall[mcp]"
+comet-cc-recall mcp
+
 # Drill into a hit
 comet-cc-recall read n_a8f2              # depth 0: summary + trigger
 comet-cc-recall read n_a8f2 --depth 1    # haiku-cached detailed summary
@@ -189,6 +201,27 @@ The test suite spins up an in-process fake of CoMeT-CC's Unix-socket
 JSON-RPC server, so you can run the full suite without installing the
 upstream daemon.
 
+## MCP integration
+
+After `pip install "comet-cc-recall[mcp]"`, register the server with any
+MCP-aware client. Example for Claude Code (`~/.config/claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "comet-cc-recall": {
+      "command": "comet-cc-recall",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Tools exposed: `recall_file`, `search`, `related`, `diff_recall`,
+`context_block`, `read_node`. Each returns JSON-serializable dicts; on
+daemon errors the tool returns `{"error": ...}` instead of crashing the
+server.
+
 ## Roadmap
 
 - VSCode extension: gutter icon + hover popup
@@ -196,9 +229,8 @@ upstream daemon.
 - Tree-sitter symbol extractor (drop the regex fallback)
 - `comet-cc-recall index <repo>` for one-shot precomputation against
   long-lived repos
-- Pre-commit / pre-push hook that surfaces `diff` recall before you push
-- MCP server wrapper so any agent can invoke recall as a tool
 - Long-running JSON-RPC server for editor integrations (no spawn overhead)
+- `compare <a> <b>` — nodes mentioning two files (cross-cutting concerns)
 
 ## Status
 
