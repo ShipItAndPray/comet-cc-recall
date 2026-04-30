@@ -58,15 +58,25 @@ Prereqs:
 
 ## Usage
 
-```bash
-# Bare path → recall (sugar)
-comet-cc-recall services/payments.py
+### Subcommands
 
-# Explicit subcommand
+```bash
+# File-anchored recall (default — the `recall` is implied)
+comet-cc-recall services/payments.py
 comet-cc-recall recall services/payments.py --top-k 8
 
-# JSON for editor integrations
-comet-cc-recall recall services/payments.py --json
+# Raw semantic search by free-text query
+comet-cc-recall search "redis idempotency race"
+
+# Graph walk from a node id (similarity-linked peers)
+comet-cc-recall related n_a8f2 --depth 2
+
+# Recall against the union of `git diff` files (great pre-PR reflex)
+comet-cc-recall diff
+comet-cc-recall diff main
+
+# Emit a <recalled-memory> block to paste into a fresh agent prompt
+comet-cc-recall context services/payments.py -k 5
 
 # Drill into a hit
 comet-cc-recall read n_a8f2              # depth 0: summary + trigger
@@ -77,14 +87,33 @@ comet-cc-recall read n_a8f2 --depth 2    # tier-3 raw turns
 comet-cc-recall doctor
 ```
 
-Flags:
+### Shared filter flags
+
+Apply to `recall`, `search`, `related`, `diff`:
+
+| flag | meaning |
+|---|---|
+| `--tag <name>` | only nodes with this topic tag (repeatable, OR-match) |
+| `--importance HIGH\|MED\|LOW` | restrict by importance (repeatable) |
+| `--since 30d` | only nodes newer than the duration / ISO date (`90m`, `2w`, `2026-04-01`) |
+
+### Shared output formats
+
+| flag | format | use for |
+|---|---|---|
+| `-o text` *(default)* | ANSI-colored terminal | humans |
+| `-o json` (or `--json`) | JSON array | editor integrations / piping |
+| `-o md` | markdown cards | pasting into docs / PRs |
+| `-o llm` | `<recalled-memory>` block | priming a fresh agent prompt |
+
+Other:
 
 | flag | default | meaning |
 |---|---|---|
 | `-k`, `--top-k` | `5` | max hits returned |
-| `--min-score` | `0.20` | cosine floor passed to the daemon |
-| `--no-repo-filter` | off | disable the repo / file-path rerank bonus |
-| `--json` | off | emit a JSON array instead of pretty text |
+| `--min-score` | `0.20` | cosine floor passed to the daemon (recall/search/context) |
+| `--no-repo-filter` | off | disable the repo / file-path rerank bonus (recall) |
+| `--depth` | `1` | graph walk depth (related: 1\|2; read: 0\|1\|2) |
 | `--color` | `auto` | `auto`, `always`, `never` |
 
 ## Supported languages
@@ -96,15 +125,30 @@ one regex pair in `src/comet_cc_recall/symbols.py`.
 ## Library use
 
 ```python
-from comet_cc_recall import recall
+from comet_cc_recall import recall, search, related, diff_recall, context_block
 
 hits = recall("src/auth/middleware.ts", top_k=5)
 for h in hits:
     print(h.node_id, h.score, h.summary)
+
+hits = search("postgres migration rollback strategy")
+hits = related("n_a8f2", depth=2)
+hits = diff_recall(base="main")        # uses git on the cwd
+print(context_block("src/payments.py")) # paste into a fresh agent prompt
 ```
 
 `hits` is a list of `RecallHit` (frozen dataclass): `node_id`, `score`,
 `summary`, `trigger`, `importance`, `tags`, `session_id`, `created_at`.
+
+Filtering composes:
+
+```python
+from comet_cc_recall.filters import filter_hits, parse_since
+
+hits = recall("src/payments.py", top_k=20)
+hits = filter_hits(hits, tags=["payments"], importance=["HIGH"],
+                   since=parse_since("14d"))
+```
 
 ## Editor integration
 
@@ -152,7 +196,9 @@ upstream daemon.
 - Tree-sitter symbol extractor (drop the regex fallback)
 - `comet-cc-recall index <repo>` for one-shot precomputation against
   long-lived repos
-- Hop-1 graph expansion surfaced in CLI output (children dimmed)
+- Pre-commit / pre-push hook that surfaces `diff` recall before you push
+- MCP server wrapper so any agent can invoke recall as a tool
+- Long-running JSON-RPC server for editor integrations (no spawn overhead)
 
 ## Status
 
