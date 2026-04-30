@@ -1,7 +1,14 @@
-"""Terminal output formatting. Plain text + ANSI colors when stdout is a TTY."""
+"""Output formatting in three flavors:
+
+- text: ANSI-colored or plain (default)
+- markdown: clean cards for pasting into docs
+- llm: a `<recalled-memory>` block intended to be pasted into a fresh
+  agent prompt (mirrors the upstream daemon's system-reminder shape)
+"""
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Iterable
 from datetime import datetime, timezone
@@ -51,6 +58,110 @@ def format_hits(hits: Iterable[RecallHit], *, color: bool | None = None) -> str:
     while lines and lines[-1] == "":
         lines.pop()
     return "\n".join(lines)
+
+
+def _isodate(ts: float) -> str:
+    if not ts:
+        return ""
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def format_hits_markdown(hits: Iterable[RecallHit], *, heading: str | None = None) -> str:
+    """One markdown card per hit. Stable, paste-friendly."""
+    items = list(hits)
+    out: list[str] = []
+    if heading:
+        out.append(f"# {heading}\n")
+    if not items:
+        out.append("_no recalled nodes_")
+        return "\n".join(out)
+    for h in items:
+        when = _isodate(h.created_at)
+        meta = " · ".join(x for x in (h.importance, when, f"score {h.score:.2f}") if x)
+        out.append(f"## `{h.node_id}`")
+        out.append(f"_{meta}_\n")
+        if h.summary:
+            out.append(h.summary + "\n")
+        if h.trigger:
+            out.append(f"**trigger:** {h.trigger}\n")
+        if h.tags:
+            out.append("**tags:** " + ", ".join(f"`{t}`" for t in h.tags) + "\n")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def format_hits_llm(
+    hits: Iterable[RecallHit],
+    *,
+    anchor: str | None = None,
+    instruction: str | None = None,
+) -> str:
+    """A `<recalled-memory>` system-reminder-shaped block intended to be
+    pasted at the top of a fresh Claude/agent prompt."""
+    items = list(hits)
+    lines: list[str] = ["<recalled-memory>"]
+    if anchor:
+        lines.append(f"  <anchor>{anchor}</anchor>")
+    if instruction:
+        lines.append(f"  <instruction>{instruction}</instruction>")
+    if not items:
+        lines.append("  <empty/>")
+    for h in items:
+        attrs = [
+            f'id="{h.node_id}"',
+            f'importance="{h.importance}"',
+            f'score="{h.score:.2f}"',
+        ]
+        if h.created_at:
+            attrs.append(f'date="{_isodate(h.created_at)}"')
+        if h.tags:
+            attrs.append(f'tags="{",".join(h.tags)}"')
+        lines.append(f"  <node {' '.join(attrs)}>")
+        if h.summary:
+            lines.append(f"    <summary>{h.summary}</summary>")
+        if h.trigger:
+            lines.append(f"    <trigger>{h.trigger}</trigger>")
+        lines.append("  </node>")
+    lines.append("</recalled-memory>")
+    return "\n".join(lines)
+
+
+def format_hits_json(hits: Iterable[RecallHit]) -> str:
+    payload = [
+        {
+            "node_id": h.node_id,
+            "score": round(h.score, 4),
+            "summary": h.summary,
+            "trigger": h.trigger,
+            "importance": h.importance,
+            "tags": list(h.tags),
+            "session_id": h.session_id,
+            "created_at": h.created_at,
+        }
+        for h in hits
+    ]
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def format_hits_any(
+    hits: Iterable[RecallHit],
+    *,
+    fmt: str,
+    color: bool | None = None,
+    anchor: str | None = None,
+    instruction: str | None = None,
+    heading: str | None = None,
+) -> str:
+    """Dispatch: text / json / md / llm."""
+    items = list(hits)
+    if fmt == "json":
+        return format_hits_json(items)
+    if fmt == "md":
+        return format_hits_markdown(items, heading=heading)
+    if fmt == "llm":
+        return format_hits_llm(items, anchor=anchor, instruction=instruction)
+    if fmt == "text":
+        return format_hits(items, color=color)
+    raise ValueError(f"unknown output format: {fmt!r}")
 
 
 def format_node_read(payload: dict, *, color: bool | None = None) -> str:

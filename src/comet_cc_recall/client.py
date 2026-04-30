@@ -105,6 +105,28 @@ class DaemonClient:
             raise DaemonError(r.get("error", "list_all_nodes failed"))
         return r.get("nodes") or []
 
+    def get_node(self, node_id: str) -> dict[str, Any]:
+        """Fetch a single node's metadata (no raw turns)."""
+        r = self._rpc("get_node", timeout=self.timeout, node_id=node_id)
+        if r is None:
+            raise DaemonError("daemon not reachable")
+        if not r.get("ok"):
+            raise DaemonError(r.get("error", "get_node failed"))
+        node = r.get("node")
+        if not isinstance(node, dict):
+            raise DaemonError("get_node returned no node")
+        return node
+
+    def list_linked_nodes(self, parent_id: str) -> list[dict[str, Any]]:
+        """Return the children/peers linked from `parent_id` via the
+        node-graph `links` edges."""
+        r = self._rpc("list_linked_nodes", timeout=self.timeout, parent_id=parent_id)
+        if r is None:
+            raise DaemonError("daemon not reachable")
+        if not r.get("ok"):
+            raise DaemonError(r.get("error", "list_linked_nodes failed"))
+        return r.get("nodes") or []
+
     # ---- transport ----
 
     def _rpc(self, method: str, *, timeout: float, **params: Any) -> Mapping[str, Any] | None:
